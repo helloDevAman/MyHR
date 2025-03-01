@@ -16,7 +16,7 @@ type LoginAdminRequest struct {
 	Password   string `json:"password" binding:"required,gte=6,lte=24"`
 }
 
-type CreateUserRequest struct {
+type CreateEmployeeRequest struct {
 	Mobile    string `json:"mobile" binding:"required,len=10"`
 	Email     string `json:"email" binding:"required,email"`
 	FirstName string `json:"first_name" binding:"required"`
@@ -26,7 +26,7 @@ type CreateUserRequest struct {
 	Role      string `json:"role" binding:"required,oneof=employee"`
 }
 
-type User struct {
+type Employee struct {
 	EmployeeID string `json:"employee_id"`
 	Mobile     string `json:"mobile"`
 	Email      string `json:"email"`
@@ -38,7 +38,7 @@ type User struct {
 	Password   string `json:"password"`
 }
 
-var users []User
+var employees []Employee
 var sessionTokens []string
 
 func generateEmployeeID() string {
@@ -53,12 +53,12 @@ func generateSessionToken() string {
 }
 
 func contains(slice []string, str string) bool {
-    for _, value := range slice {
-        if value == str {
-            return true
-        }
-    }
-    return false
+	for _, value := range slice {
+		if value == str {
+			return true
+		}
+	}
+	return false
 }
 
 func generateRandomPassword(length int) string {
@@ -81,16 +81,15 @@ func loginAdmin(c *gin.Context) {
 		return
 	}
 
-
 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid employee id or password."})
 }
 
-func createUser(c *gin.Context) {
-	if	authorizationToken := c.GetHeader("Authorization"); authorizationToken == "" || !contains(sessionTokens,authorizationToken){
+func createEmployee(c *gin.Context) {
+	if authorizationToken := c.GetHeader("Authorization"); authorizationToken == "" || !contains(sessionTokens, authorizationToken) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session."})
 		return
 	}
-	var req CreateUserRequest
+	var req CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -101,7 +100,7 @@ func createUser(c *gin.Context) {
 		return
 	}
 
-	newUser := User{
+	newEmployee := Employee{
 		EmployeeID: generateEmployeeID(),
 		Mobile:     req.Mobile,
 		Email:      req.Email,
@@ -112,14 +111,29 @@ func createUser(c *gin.Context) {
 		Role:       req.Role,
 		Password:   generateRandomPassword(8),
 	}
-	users = append(users, newUser)
+	employees = append(employees, newEmployee)
 
-	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully.", "user": newUser})
+	c.JSON(http.StatusCreated, gin.H{"message": "Employee created successfully.", "employee": newEmployee})
+}
+
+func getEmployees(c *gin.Context) {
+	if authorizationToken := c.GetHeader("Authorization"); authorizationToken == "" || !contains(sessionTokens, authorizationToken) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid session."})
+		return
+	}
+
+	if employees != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "Employees data fetched successfully.", "employees": employees})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "No employee create yet."})
 }
 
 func main() {
 	r := gin.Default()
 	r.POST("/login-admin", loginAdmin)
-	r.POST("/create-user", createUser)
+	r.POST("/create-employee", createEmployee)
+	r.GET("/get-employees", getEmployees)
 	r.Run(":8080")
 }
